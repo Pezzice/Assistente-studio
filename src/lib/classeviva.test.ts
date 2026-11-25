@@ -59,3 +59,13 @@ describe("ClasseViva client", () => {
     expect(titleCase("LINGUA E CULTURA LATINA")).toBe("Lingua e cultura latina");
   });
 });
+
+describe("describeFailure", () => {
+  it("recognises the anti-bot block", async () => {
+    const { describeFailure } = await import("./classeviva");
+    const r = new Response("<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD><BODY>Reference #18.abc</BODY></HTML>", { status: 403 });
+    expect(await describeFailure(r)).toContain("anti-bot");
+    const j = new Response(JSON.stringify({ error: "auth.denied", info: "wrong credentials" }), { status: 403 });
+    expect(await describeFailure(j)).toBe("HTTP 403: auth.denied · wrong credentials");
+  });
+});

@@ -10,6 +10,8 @@ import { normalizeSubject } from "./planner";
 export async function checkClasseViva(user: string, pass: string, knownSubjects: string[]) {
   const today = todayInRome();
   const steps: { step: string; ok: boolean; detail: string }[] = [];
+  const region = process.env.VERCEL_REGION;
+  if (region) steps.push({ step: "Server", ok: true, detail: `regione Vercel ${region}` });
   let session;
   try {
     session = await login(user, pass);

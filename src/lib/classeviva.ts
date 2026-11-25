@@ -41,10 +41,27 @@ export async function login(user: string, pass: string, f: FetchLike = fetch): P
   if (res.status === 422 || res.status === 401) {
     throw new ClasseVivaError("Credenziali ClasseViva non accettate", res.status);
   }
-  if (!res.ok) throw new ClasseVivaError(`Login ClasseViva fallito (HTTP ${res.status})`, res.status);
+  if (!res.ok) throw new ClasseVivaError(`Login ClasseViva fallito: ${await describeFailure(res)}`, res.status);
   const body = (await res.json()) as { ident?: string; token?: string; expire?: string };
   if (!body.token || !body.ident) throw new ClasseVivaError("Risposta di login ClasseViva inattesa");
   return { token: body.token, studentId: body.ident.replace(/\D/g, ""), expire: body.expire ?? "" };
+}
+
+/** Explains a failed response without exposing anything sensitive. */
+export async function describeFailure(res: Response): Promise<string> {
+  const body = (await res.text().catch(() => "")).slice(0, 2000);
+  const server = res.headers.get("server") ?? "";
+  if (res.status === 403 && /access denied|akamai|reference\s*#/i.test(body + server)) {
+    return "HTTP 403, richiesta bloccata dal filtro anti-bot di ClasseViva (blocco del server, non delle credenziali)";
+  }
+  let detail = "";
+  try {
+    const j = JSON.parse(body) as { error?: string; message?: string; info?: string };
+    detail = [j.error, j.message, j.info].filter(Boolean).join(" · ");
+  } catch {
+    detail = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
+  return `HTTP ${res.status}${server ? ` (server: ${server})` : ""}${detail ? `: ${detail}` : ""}`;
 }
 
 async function get<T>(session: Session, path: string, f: FetchLike): Promise<T> {
@@ -52,7 +69,7 @@ async function get<T>(session: Session, path: string, f: FetchLike): Promise<T> 
     headers: { ...HEADERS, "Z-Auth-Token": session.token },
     cache: "no-store",
   });
-  if (!res.ok) throw new ClasseVivaError(`ClasseViva ${path}: HTTP ${res.status}`, res.status);
+  if (!res.ok) throw new ClasseVivaError(`ClasseViva ${path}: ${await describeFailure(res)}`, res.status);
   return (await res.json()) as T;
 }
 
