@@ -1,4 +1,5 @@
 import { addDays, dayLabel, daysBetween, romeParts, toHHMM, toMinutes, weekday } from "./dates";
+import { afterSchool, freeDayWindows, timetable, weekdayStudyEnd } from "@/config/timetable";
 import type {
   AgendaItem,
   BlockKind,
@@ -8,21 +9,30 @@ import type {
   PlannerSettings,
   StudentData,
   StudyBlock,
+  SchoolDay,
   SubjectStatus,
+  TimeWindow,
   WeekPlan,
 } from "./types";
 
+/** Study windows derived from the timetable: from the end of school plus travel and lunch until the evening. */
+export function windowsFromTimetable(days: SchoolDay[]): TimeWindow[][] {
+  return Array.from({ length: 7 }, (_, wd) => {
+    const school = days.find((d) => d.weekday === wd);
+    if (school) {
+      const start = toMinutes(school.end) + afterSchool.travelMinutes + afterSchool.lunchMinutes;
+      return [{ start: toHHMM(start), end: weekdayStudyEnd }];
+    }
+    if (wd === 6) return freeDayWindows.saturday;
+    if (wd === 0) return freeDayWindows.sunday;
+    return [];
+  });
+}
+
 export const defaultSettings: PlannerSettings = {
-  windows: [
-    null, // domenica libera
-    { start: "15:00", end: "19:30" },
-    { start: "15:00", end: "19:30" },
-    { start: "15:00", end: "19:30" },
-    { start: "15:00", end: "19:30" },
-    { start: "15:00", end: "19:30" },
-    { start: "10:00", end: "12:30" },
-  ],
-  maxMinutesPerDay: 180,
+  windows: windowsFromTimetable(timetable),
+  maxMinutesPerDay: [120, 180, 180, 180, 180, 180, 180],
+  timetable,
   blockMinutes: 45,
   breakMinutes: 15,
   bufferMinutes: 30,
@@ -46,8 +56,37 @@ type Demand = {
   priority: number;
 };
 
+// Order matters: "Scienze motorie" is Motoria, "Disegno e storia dell'arte" is Arte
+const SUBJECT_KEYS: [RegExp, string][] = [
+  [/motori/, "motoria"],
+  [/arte|disegno/, "arte"],
+  [/italian/, "italiano"],
+  [/latin/, "latino"],
+  [/ingles|english/, "inglese"],
+  [/matemat/, "matematica"],
+  [/fisic/, "fisica"],
+  [/scienz/, "scienze"],
+  [/stori|geograf/, "storia"],
+  [/religion/, "religione"],
+  [/alternativ/, "alternativa"],
+  [/civic/, "civica"],
+];
+
+/** Canonical subject key, so "LINGUA E CULTURA LATINA" and "Latino" match. */
 export function normalizeSubject(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
+  const t = s.trim().toLowerCase().replace(/\s+/g, " ");
+  return SUBJECT_KEYS.find(([re]) => re.test(t))?.[1] ?? t;
+}
+
+/** Next school day after `date` that has a lesson of `subject`, within 7 days. */
+function nextLessonDay(subject: string, date: string, days: SchoolDay[]): string | null {
+  const key = normalizeSubject(subject);
+  for (let i = 1; i <= 7; i++) {
+    const d = addDays(date, i);
+    const school = days.find((x) => x.weekday === weekday(d));
+    if (school?.subjects.some((x) => normalizeSubject(x) === key)) return d;
+  }
+  return null;
 }
 
 export function weightedAverage(grades: Grade[]): number | null {
@@ -221,8 +260,8 @@ export function planWeek(
   const perSubject = new Map<string, number>();
   const initialFree = new Map<string, number>();
   for (const d of days) {
-    const w = s.windows[weekday(d)];
-    let ivs: Interval[] = d >= from && w ? [{ start: toMinutes(w.start), end: toMinutes(w.end) }] : [];
+    let ivs: Interval[] =
+      d >= from ? s.windows[weekday(d)].map((w) => ({ start: toMinutes(w.start), end: toMinutes(w.end) })) : [];
     for (const b of busy.get(d)!) {
       ivs = subtract(ivs, { start: b.start - s.bufferMinutes, end: b.end + s.bufferMinutes });
     }
@@ -236,7 +275,7 @@ export function planWeek(
 
   const capacity = (d: string) => {
     const fits = free.get(d)!.some((iv) => iv.end - iv.start >= s.blockMinutes);
-    return fits ? s.maxMinutesPerDay - used.get(d)! : 0;
+    return fits ? s.maxMinutesPerDay[weekday(d)] - used.get(d)! : 0;
   };
 
   const place = (d: string, demand: Demand) => {
@@ -255,7 +294,10 @@ export function planWeek(
       end: toHHMM(end),
       subject: demand.subject,
       kind: demand.kind,
-      reason: demand.reason,
+      reason:
+        demand.kind === "recupero" && nextLessonDay(demand.subject, d, s.timetable) === addDays(d, 1)
+          ? `${demand.reason} · domani c'è lezione`
+          : demand.reason,
       topics: recentTopics(demand.subject, data.lessons, data.agenda, demand.kind === "recupero" ? today : demand.deadline),
     });
   };
@@ -276,7 +318,12 @@ export function planWeek(
         const sa = perSubject.get(`${a}|${normalizeSubject(demand.subject)}`) ?? 0;
         const sb = perSubject.get(`${b}|${normalizeSubject(demand.subject)}`) ?? 0;
         if (sa !== sb) return sa - sb;
-        if (demand.kind === "recupero") return capacity(b) - capacity(a) || a.localeCompare(b);
+        if (demand.kind === "recupero") {
+          // Prefer the afternoon before a lesson of that subject
+          const ta = nextLessonDay(demand.subject, a, s.timetable) === addDays(a, 1) ? 1 : 0;
+          const tb = nextLessonDay(demand.subject, b, s.timetable) === addDays(b, 1) ? 1 : 0;
+          return tb - ta || capacity(b) - capacity(a) || a.localeCompare(b);
+        }
         return b.localeCompare(a);
       });
       place(candidates[0], demand);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, planWeek, recentTopics, subjectStatuses, weightedAverage } from "./planner";
+import { defaultSettings, normalizeSubject, planWeek, recentTopics, subjectStatuses, weightedAverage } from "./planner";
 import { sampleData } from "./sample-data";
 import { addDays, romeToIso, toMinutes } from "./dates";
 import type { StudentData } from "./types";
@@ -62,7 +62,11 @@ describe("planWeek with sample data", () => {
   it("never overlaps commitments (with travel buffer) and respects windows and daily cap", () => {
     for (const day of plan.days) {
       const used = day.blocks.reduce((t, b) => t + toMinutes(b.end) - toMinutes(b.start), 0);
-      expect(used).toBeLessThanOrEqual(defaultSettings.maxMinutesPerDay);
+      expect(used).toBeLessThanOrEqual(defaultSettings.maxMinutesPerDay[new Date(`${day.date}T00:00:00Z`).getUTCDay()]);
+      const windows = defaultSettings.windows[new Date(`${day.date}T00:00:00Z`).getUTCDay()];
+      for (const b of day.blocks) {
+        expect(windows.some((w) => b.start >= w.start && b.end <= w.end), `${b.date} ${b.start}`).toBe(true);
+      }
       for (const b of day.blocks) {
         for (const c of day.commitments.filter((c) => !c.allDay)) {
           const overlap =
@@ -72,7 +76,6 @@ describe("planWeek with sample data", () => {
         }
       }
     }
-    expect(plan.days[6].blocks).toHaveLength(0); // Sunday off
   });
 
   it("blocks within a day do not overlap", () => {
@@ -103,6 +106,33 @@ describe("planWeek edge cases", () => {
     const plan = planWeek(data, MON, MON);
     expect(plan.days.flatMap((d) => d.blocks)).toHaveLength(0);
     expect(plan.unmet.some((u) => u.subject === "Matematica" && u.kind === "verifica")).toBe(true);
+  });
+});
+
+describe("timetable", () => {
+  it("starts studying after school, travel and lunch", () => {
+    expect(defaultSettings.windows[1]).toEqual([{ start: "15:25", end: "19:30" }]); // Monday ends 13:55
+    expect(defaultSettings.windows[2]).toEqual([{ start: "14:35", end: "19:30" }]); // Tuesday ends 13:05
+    expect(defaultSettings.windows[6]).toHaveLength(2); // Saturday morning and afternoon
+  });
+
+  it("matches ClasseViva names to short timetable names", () => {
+    expect(normalizeSubject("LINGUA E CULTURA LATINA")).toBe(normalizeSubject("Latino"));
+    expect(normalizeSubject("Disegno e storia dell'arte")).toBe("arte");
+    expect(normalizeSubject("Scienze motorie e sportive")).toBe("motoria");
+    expect(normalizeSubject("Storia e geografia")).toBe("storia");
+  });
+
+  it("puts recovery blocks on the day before a lesson of that subject when possible", () => {
+    const data = sampleData(MON);
+    data.agenda = [];
+    data.commitments = [];
+    const plan = planWeek(data, MON, MON);
+    const latin = plan.days.flatMap((d) => d.blocks).filter((b) => b.subject === "Lingua e cultura latina");
+    expect(latin.length).toBeGreaterThan(0);
+    // Latin is on Tuesday and Thursday: study on Monday and Wednesday
+    for (const b of latin) expect(["2026-11-30", "2026-12-02"]).toContain(b.date);
+    expect(latin[0].reason).toContain("domani c'è lezione");
   });
 });
 

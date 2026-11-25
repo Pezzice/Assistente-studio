@@ -39,10 +39,21 @@ export type Goal = {
 
 export type TimeWindow = { start: string; end: string };
 
+export type SchoolDay = {
+  /** 0 = Sunday ... 6 = Saturday */
+  weekday: number;
+  start: string;
+  end: string;
+  subjects: string[];
+};
+
 export type PlannerSettings = {
-  /** Study window per weekday, 0 = Sunday ... 6 = Saturday; null = no study */
-  windows: (TimeWindow | null)[];
-  maxMinutesPerDay: number;
+  /** Study windows per weekday, 0 = Sunday ... 6 = Saturday; empty = no study */
+  windows: TimeWindow[][];
+  /** Maximum study minutes per weekday, 0 = Sunday ... 6 = Saturday */
+  maxMinutesPerDay: number[];
+  /** School timetable: recovery blocks prefer the day before a lesson of that subject */
+  timetable: SchoolDay[];
   blockMinutes: number;
   breakMinutes: number;
   /** Travel margin around each commitment */
