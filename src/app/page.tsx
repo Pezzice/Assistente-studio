@@ -50,6 +50,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
           {data.sources.calendario === "esempio" ? "calendario" : ""}: configura le variabili d&apos;ambiente per vedere quelli veri.
         </p>
       )}
+      {data.sources.calendario === "non collegato" && (
+        <p className="notice">Calendario Famiglia non collegato: il piano non tiene conto degli impegni.</p>
+      )}
       {data.errors.map((e) => (
         <p key={e} className="notice error">{e}</p>
       ))}

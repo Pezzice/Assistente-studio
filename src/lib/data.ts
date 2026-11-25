@@ -7,7 +7,7 @@ import { sampleData } from "./sample-data";
 import type { StudentData } from "./types";
 
 export type LoadedData = StudentData & {
-  sources: { classeviva: "reale" | "esempio"; calendario: "reale" | "esempio" };
+  sources: { classeviva: "reale" | "esempio"; calendario: "reale" | "esempio" | "non collegato" };
   errors: string[];
 };
 
@@ -35,6 +35,12 @@ export async function loadData(weekStart: string): Promise<LoadedData> {
     } catch (e) {
       errors.push(`ClasseViva: ${(e as Error).message}`);
     }
+  }
+
+  // With real school data, never mix in sample commitments
+  if (!FAMILY_ICS_URL && out.sources.classeviva === "reale") {
+    out.commitments = [];
+    out.sources.calendario = "non collegato";
   }
 
   if (FAMILY_ICS_URL) {
