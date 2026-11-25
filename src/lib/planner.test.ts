@@ -113,7 +113,7 @@ describe("timetable", () => {
   it("starts studying after school, travel and lunch", () => {
     expect(defaultSettings.windows[1]).toEqual([{ start: "15:25", end: "19:30" }]); // Monday ends 13:55
     expect(defaultSettings.windows[2]).toEqual([{ start: "14:35", end: "19:30" }]); // Tuesday ends 13:05
-    expect(defaultSettings.windows[6]).toEqual([{ start: "10:00", end: "12:00" }]); // light Saturday
+    expect(defaultSettings.windows[6]).toEqual([{ start: "15:00", end: "17:00" }]); // Saturday morning: housework
   });
 
   it("matches ClasseViva names to short timetable names", () => {
@@ -158,6 +158,20 @@ describe("adaptive load", () => {
     const blocks = plan.days.flatMap((d) => d.blocks);
     expect(blocks.filter((b) => b.kind === "ripasso").map((b) => b.subject)).toEqual(["Fisica"]);
     expect(plan.days[6].blocks).toHaveLength(0);
+  });
+});
+
+describe("homework", () => {
+  it("is always scheduled first, even when the week is full of tests", () => {
+    const data = sampleData(MON);
+    data.commitments = [];
+    for (let i = 0; i < 6; i++) {
+      data.agenda.push({ id: `t${i}`, subject: ["Fisica", "Storia e geografia", "Scienze naturali"][i % 3], date: "2026-12-03", kind: "verifica", text: "" });
+    }
+    const plan = planWeek(data, MON, MON);
+    const hw = plan.days.flatMap((d) => d.blocks).filter((b) => b.kind === "compito");
+    expect(hw).toHaveLength(2);
+    expect(plan.unmet.some((u) => u.kind === "compito")).toBe(false);
   });
 });
 

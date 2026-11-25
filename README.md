@@ -8,14 +8,15 @@ Google **Famiglia**, e distribuisce blocchi di studio nei pomeriggi liberi verso
 ## Come funziona il piano
 
 1. **Tempo libero**: nei giorni di scuola si parte dalla fine delle lezioni più 45 minuti di
-   rientro e 45 di pranzo (lun e ven 15:25, mar–gio 14:35) fino alle 19:30; sabato 9:30–12:30 e
-   15:00–18:00, domenica 15:00–18:00 (massimo 2 ore). Si tolgono gli impegni di Gabriele, con
+   rientro e 45 di pranzo (lun e ven 15:25, mar–gio 14:35) fino alle 19:30; sabato 15:00–17:00 (la
+   mattina è per i mestieri di casa), domenica 16:00–17:45 solo per verifiche o compiti di inizio
+   settimana. Si tolgono gli impegni di Gabriele, con
    30 minuti di margine per gli spostamenti.
 2. **Cosa serve**: ogni verifica chiede 3 ore (interrogazione 2 ore e 15) distribuite nei 4 giorni
    precedenti; i compiti un blocco nei 3 giorni prima della consegna; le materie sotto
    obiettivo da 1 a 3 blocchi di recupero.
 3. **Assegnazione**: blocchi da 45 minuti con 15 di pausa, massimo 3 ore al giorno e 2 blocchi
-   della stessa materia al giorno; prima le scadenze più vicine, poi il recupero.
+   della stessa materia al giorno; prima sempre i compiti assegnati su ClasseViva, poi le verifiche, poi recupero e ripasso.
 4. **Orario scolastico**: i blocchi di recupero vanno di preferenza il pomeriggio prima di una
    lezione di quella materia (`src/config/timetable.ts`).
 5. **Argomenti**: per ogni blocco, gli argomenti svolti a lezione dall'ultima verifica.

@@ -16,10 +16,11 @@ export const afterSchool = { travelMinutes: 45, lunchMinutes: 45 };
 export const weekdayStudyEnd = "19:30";
 
 /**
- * Giorni senza scuola, weekend leggero: il sabato una mattina breve, la domenica un'ora e mezza
- * nel pomeriggio usata solo se c'è una verifica o dei compiti a inizio settimana.
+ * Giorni senza scuola, weekend leggero: il sabato mattina è per i mestieri di casa, quindi si
+ * studia il pomeriggio; la domenica un'ora e mezza usata solo se c'è una verifica o dei compiti
+ * a inizio settimana.
  */
 export const freeDayWindows = {
-  saturday: [{ start: "10:00", end: "12:00" }],
+  saturday: [{ start: "15:00", end: "17:00" }],
   sunday: [{ start: "16:00", end: "17:45" }],
 };

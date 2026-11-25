@@ -319,7 +319,8 @@ function buildDemands(data: StudentData, statuses: SubjectStatus[], from: string
   demands.push(...ripasso.sort((a, b) => b.priority - a.priority).slice(0, s.maxReviewBlocksPerWeek));
 
   // Deadlines first (earliest deadline first), then recovery of subjects below target
-  const rank = (d: Demand) => (d.kind === "recupero" ? 1 : d.kind === "ripasso" ? 2 : 0);
+  // Homework from ClasseViva always comes first, then tests, then recovery and review
+  const rank = (d: Demand) => ({ compito: 0, verifica: 1, interrogazione: 1, recupero: 2, ripasso: 3 })[d.kind];
   return demands.sort((a, b) => rank(a) - rank(b) || a.deadline.localeCompare(b.deadline) || b.priority - a.priority);
 }
 
