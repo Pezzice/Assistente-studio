@@ -1,13 +1,16 @@
 import "server-only";
 import { goals } from "@/config/goals";
+import calendarFile from "../../data/calendario.json";
 import { fetchFamilyCommitments } from "./calendar";
+import { commitmentsFromFile, type CalendarFile } from "./calendar-file";
 import { fetchAgenda, fetchGrades, fetchLessons, login } from "./classeviva";
 import { addDays, romeToIso } from "./dates";
 import { sampleData } from "./sample-data";
 import type { StudentData } from "./types";
 
 export type LoadedData = StudentData & {
-  sources: { classeviva: "reale" | "esempio"; calendario: "reale" | "esempio" | "non collegato" };
+  sources: { classeviva: "reale" | "esempio"; calendario: "reale" | "sincronizzato" | "esempio" | "non collegato" };
+  calendarUpdatedAt?: string;
   errors: string[];
 };
 
@@ -37,8 +40,19 @@ export async function loadData(weekStart: string): Promise<LoadedData> {
     }
   }
 
-  // With real school data, never mix in sample commitments
-  if (!FAMILY_ICS_URL && out.sources.classeviva === "reale") {
+  // Calendar synced by Claude into data/calendario.json (used when there is no iCal address)
+  const synced = calendarFile as CalendarFile;
+  if (!FAMILY_ICS_URL && synced.updatedAt) {
+    out.commitments = commitmentsFromFile(
+      synced,
+      new Date(romeToIso(weekStart, "00:00")),
+      new Date(romeToIso(addDays(weekStart, 7), "00:00")),
+    );
+    out.sources.calendario = "sincronizzato";
+    out.calendarUpdatedAt = synced.updatedAt;
+    if (addDays(weekStart, 7) > synced.to) errors.push(`Calendario sincronizzato solo fino al ${synced.to}`);
+  } else if (!FAMILY_ICS_URL && out.sources.classeviva === "reale") {
+    // With real school data, never mix in sample commitments
     out.commitments = [];
     out.sources.calendario = "non collegato";
   }

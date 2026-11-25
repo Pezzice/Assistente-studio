@@ -50,6 +50,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
           {data.sources.calendario === "esempio" ? "calendario" : ""}: configura le variabili d&apos;ambiente per vedere quelli veri.
         </p>
       )}
+      {data.sources.calendario === "sincronizzato" && data.calendarUpdatedAt && (
+        <p className="sub">
+          Impegni dal calendario Famiglia, aggiornati il{" "}
+          {new Date(data.calendarUpdatedAt).toLocaleString("it-IT", { timeZone: "Europe/Rome", dateStyle: "short", timeStyle: "short" })}
+        </p>
+      )}
       {data.sources.calendario === "non collegato" && (
         <p className="notice">Calendario Famiglia non collegato: il piano non tiene conto degli impegni.</p>
       )}

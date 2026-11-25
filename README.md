@@ -55,3 +55,15 @@ ufficiale dell'app mobile: può cambiare senza preavviso.
   Stampa login, numero di voti, agenda e lezioni, le materie trovate e come sono state
   classificate le voci dell'agenda. Non stampa mai le credenziali.
 - Online: la pagina `/diagnostica` (protetta dal PIN) mostra lo stesso riepilogo.
+
+## Calendario sincronizzato
+
+Se `FAMILY_ICS_URL` non è impostata, l'app legge gli impegni da `data/calendario.json`.
+Il file contiene solo gli impegni di Gabriele (titolo e orari) ed è aggiornato ogni mattina da
+un'attività pianificata di Claude, che legge il calendario Famiglia e lancia:
+
+```bash
+npm run aggiorna:calendario -- <da YYYY-MM-DD> <a YYYY-MM-DD> eventi.json
+```
+
+Ogni aggiornamento è un commit su `main`, quindi Vercel ripubblica l'app da solo.
