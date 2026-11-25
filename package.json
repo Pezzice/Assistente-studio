@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verifica:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/verifica-classeviva.mts"
   },
   "dependencies": {
     "ical.js": "^2.2.1",
@@ -20,6 +21,7 @@
     "@types/node": "^22.20.7",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

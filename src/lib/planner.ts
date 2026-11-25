@@ -31,7 +31,8 @@ export function windowsFromTimetable(days: SchoolDay[]): TimeWindow[][] {
 
 export const defaultSettings: PlannerSettings = {
   windows: windowsFromTimetable(timetable),
-  maxMinutesPerDay: [120, 180, 180, 180, 180, 180, 180],
+  // Lighter weekend: Saturday 1h30, Sunday 1h30 and only for deadlines
+  maxMinutesPerDay: [90, 180, 180, 180, 180, 180, 90],
   timetable,
   blockMinutes: 45,
   breakMinutes: 15,
@@ -41,6 +42,8 @@ export const defaultSettings: PlannerSettings = {
   minutesPerHomework: 45,
   prepDays: 4,
   maxBlocksPerSubjectPerDay: 2,
+  newTopicsThreshold: 3,
+  maxReviewBlocksPerWeek: 3,
 };
 
 type Interval = { start: number; end: number };
@@ -105,7 +108,10 @@ export function subjectStatuses(data: StudentData, today: string): SubjectStatus
   }
   return [...names.entries()]
     .map(([key, subject]) => {
-      const average = weightedAverage(data.grades.filter((g) => normalizeSubject(g.subject) === key));
+      const grades = data.grades
+        .filter((g) => normalizeSubject(g.subject) === key)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const average = weightedAverage(grades);
       const goal = data.goals.find((g) => normalizeSubject(g.subject) === key);
       const target = goal ? goal.target : null;
       const gap = average !== null && target !== null ? Math.max(0, Math.round((target - average) * 100) / 100) : 0;
@@ -118,7 +124,25 @@ export function subjectStatuses(data: StudentData, today: string): SubjectStatus
               a.date >= today,
           )
           .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
-      return { subject, average, target, gap, nextTest };
+      const lastGrade = grades.at(-1)?.value ?? null;
+      const mean = (xs: number[]) => xs.reduce((t, x) => t + x, 0) / xs.length;
+      const values = grades.map((g) => g.value);
+      const trend =
+        values.length >= 3
+          ? Math.round((mean(values.slice(-2)) - mean(values.slice(0, -2))) * 100) / 100
+          : values.length === 2
+            ? values[1] - values[0]
+            : null;
+      const lastTest = data.agenda
+        .filter((a) => normalizeSubject(a.subject) === key && (a.kind === "verifica" || a.kind === "interrogazione") && a.date < today)
+        .map((a) => a.date)
+        .sort()
+        .at(-1);
+      const since = lastTest && lastTest > addDays(today, -7) ? lastTest : addDays(today, -7);
+      const newTopics = data.lessons.filter(
+        (l) => normalizeSubject(l.subject) === key && l.date >= since && l.date < today && l.topic.trim(),
+      ).length;
+      return { subject, average, target, gap, nextTest, lastGrade, trend, newTopics };
     })
     .sort((a, b) => b.gap - a.gap || a.subject.localeCompare(b.subject));
 }
@@ -185,6 +209,38 @@ function commitmentsByDay(data: StudentData, days: string[]) {
   return { byDay, busy };
 }
 
+const fmt = (n: number) => String(Math.round(n * 100) / 100).replace(".", ",");
+
+/**
+ * How much extra work a subject needs this week, from grades and their trend.
+ * Recovery: 1 block per half point below target (1–3); at least 1 after a grade below 6,
+ * one more if grades are falling, one less if they are clearly rising.
+ * Test preparation: +45 min if behind, −45 min if comfortably above target and steady.
+ */
+export function adaptiveLoad(st: SubjectStatus, s: PlannerSettings) {
+  let recovery = st.gap > 0 ? Math.min(3, Math.max(1, Math.round(st.gap * 2))) : 0;
+  const notes: string[] = [];
+  if (st.lastGrade !== null && st.lastGrade < 6) {
+    recovery = Math.max(recovery, st.gap > 0 ? 2 : 1);
+    notes.push(`ultimo voto ${fmt(st.lastGrade)}`);
+  }
+  if (st.trend !== null && st.trend <= -0.5 && (st.gap > 0 || (st.target !== null && st.lastGrade !== null && st.lastGrade < st.target))) {
+    recovery += 1;
+    notes.push("voti in calo");
+  } else if (st.trend !== null && st.trend >= 0.5 && recovery > 0) {
+    recovery = Math.max(st.gap > 0.5 ? 1 : 0, recovery - 1);
+    notes.push("voti in miglioramento");
+  }
+  recovery = Math.min(3, recovery);
+
+  let testMinutes = 0;
+  if (st.gap > 0.5 || (st.lastGrade !== null && st.lastGrade < 6)) testMinutes = s.blockMinutes;
+  else if (st.average !== null && st.target !== null && st.average >= st.target + 0.5 && (st.trend ?? 0) >= 0) {
+    testMinutes = -s.blockMinutes;
+  }
+  return { recovery, testMinutes, notes };
+}
+
 function buildDemands(data: StudentData, statuses: SubjectStatus[], from: string, weekEnd: string, s: PlannerSettings): Demand[] {
   const demands: Demand[] = [];
   const gapOf = (subject: string) => statuses.find((x) => normalizeSubject(x.subject) === normalizeSubject(subject))?.gap ?? 0;
@@ -217,23 +273,53 @@ function buildDemands(data: StudentData, statuses: SubjectStatus[], from: string
     }
   }
 
-  for (const st of statuses) {
-    if (st.gap <= 0) continue;
-    // ~1 block per half point of gap, between 1 and 3 blocks a week
-    const blocks = Math.min(3, Math.max(1, Math.round(st.gap * 2)));
-    demands.push({
-      subject: st.subject,
-      kind: "recupero",
-      minutes: blocks * s.blockMinutes,
-      deadline: addDays(weekEnd, 1),
-      earliest: from,
-      reason: `Media ${st.average?.toFixed(2).replace(".", ",")} contro obiettivo ${String(st.target).replace(".", ",")}`,
-      priority: st.gap * 20,
-    });
+  const statusOf = (subject: string) => statuses.find((x) => normalizeSubject(x.subject) === normalizeSubject(subject));
+
+  // Test preparation adapts to how the subject is going
+  for (const d of demands) {
+    const st = statusOf(d.subject);
+    if (st && (d.kind === "verifica" || d.kind === "interrogazione")) {
+      d.minutes = Math.max(s.blockMinutes, d.minutes + adaptiveLoad(st, s).testMinutes);
+    }
   }
 
+  const ripasso: Demand[] = [];
+  for (const st of statuses) {
+    const { recovery, notes } = adaptiveLoad(st, s);
+    if (recovery > 0) {
+      const base =
+        st.gap > 0
+          ? `Media ${fmt(st.average ?? 0)} contro obiettivo ${fmt(st.target ?? 0)}`
+          : `Media ${st.average !== null ? fmt(st.average) : "–"}`;
+      demands.push({
+        subject: st.subject,
+        kind: "recupero",
+        minutes: recovery * s.blockMinutes,
+        deadline: addDays(weekEnd, 1),
+        earliest: from,
+        reason: [base, ...notes].join(" · "),
+        priority: st.gap * 20 + recovery * 5,
+      });
+      continue;
+    }
+    // Consolidate new topics when no test is coming and the subject is on track
+    const testSoon = demands.some((d) => normalizeSubject(d.subject) === normalizeSubject(st.subject) && d.kind !== "recupero");
+    if (st.newTopics >= s.newTopicsThreshold && !testSoon) {
+      ripasso.push({
+        subject: st.subject,
+        kind: "ripasso",
+        minutes: s.blockMinutes,
+        deadline: addDays(weekEnd, 1),
+        earliest: from,
+        reason: `${st.newTopics} lezioni con argomenti nuovi questa settimana`,
+        priority: st.newTopics,
+      });
+    }
+  }
+  demands.push(...ripasso.sort((a, b) => b.priority - a.priority).slice(0, s.maxReviewBlocksPerWeek));
+
   // Deadlines first (earliest deadline first), then recovery of subjects below target
-  const rank = (d: Demand) => (d.kind === "recupero" ? 1 : 0);
+  const rank = (d: Demand) => (d.kind === "recupero" ? 1 : d.kind === "ripasso" ? 2 : 0);
   return demands.sort((a, b) => rank(a) - rank(b) || a.deadline.localeCompare(b.deadline) || b.priority - a.priority);
 }
 
@@ -295,10 +381,15 @@ export function planWeek(
       subject: demand.subject,
       kind: demand.kind,
       reason:
-        demand.kind === "recupero" && nextLessonDay(demand.subject, d, s.timetable) === addDays(d, 1)
+        (demand.kind === "recupero" || demand.kind === "ripasso") && nextLessonDay(demand.subject, d, s.timetable) === addDays(d, 1)
           ? `${demand.reason} · domani c'è lezione`
           : demand.reason,
-      topics: recentTopics(demand.subject, data.lessons, data.agenda, demand.kind === "recupero" ? today : demand.deadline),
+      topics: recentTopics(
+        demand.subject,
+        data.lessons,
+        data.agenda,
+        demand.kind === "recupero" || demand.kind === "ripasso" ? today : demand.deadline,
+      ),
     });
   };
 
@@ -309,7 +400,9 @@ export function planWeek(
       const candidates = eligible.filter(
         (d) =>
           capacity(d) >= s.blockMinutes &&
-          (perSubject.get(`${d}|${normalizeSubject(demand.subject)}`) ?? 0) < s.maxBlocksPerSubjectPerDay,
+          (perSubject.get(`${d}|${normalizeSubject(demand.subject)}`) ?? 0) < s.maxBlocksPerSubjectPerDay &&
+          // Sunday only for deadlines (a test or homework early in the week)
+          !(weekday(d) === 0 && (demand.kind === "recupero" || demand.kind === "ripasso")),
       );
       if (candidates.length === 0) break;
       // Spread: pick the day with the fewest blocks of this subject, then the most spare capacity, then the latest
@@ -318,7 +411,7 @@ export function planWeek(
         const sa = perSubject.get(`${a}|${normalizeSubject(demand.subject)}`) ?? 0;
         const sb = perSubject.get(`${b}|${normalizeSubject(demand.subject)}`) ?? 0;
         if (sa !== sb) return sa - sb;
-        if (demand.kind === "recupero") {
+        if (demand.kind === "recupero" || demand.kind === "ripasso") {
           // Prefer the afternoon before a lesson of that subject
           const ta = nextLessonDay(demand.subject, a, s.timetable) === addDays(a, 1) ? 1 : 0;
           const tb = nextLessonDay(demand.subject, b, s.timetable) === addDays(b, 1) ? 1 : 0;
@@ -330,7 +423,7 @@ export function planWeek(
       remaining--;
     }
     // Tests early next week can still be prepared then: report only what is really missing
-    if (remaining > 0 && demand.kind !== "recupero" && demand.deadline <= addDays(weekEnd, 1)) {
+    if (remaining > 0 && demand.kind !== "recupero" && demand.kind !== "ripasso" && demand.deadline <= addDays(weekEnd, 1)) {
       unmet.push({ subject: demand.subject, kind: demand.kind, minutes: remaining * s.blockMinutes, reason: demand.reason });
     }
   }

@@ -66,6 +66,9 @@ export type PlannerSettings = {
   prepDays: number;
   /** Maximum blocks of the same subject in a day */
   maxBlocksPerSubjectPerDay: number;
+  /** Lessons with new topics in a week that trigger a review block */
+  newTopicsThreshold: number;
+  maxReviewBlocksPerWeek: number;
 };
 
 export type StudentData = {
@@ -76,7 +79,7 @@ export type StudentData = {
   goals: Goal[];
 };
 
-export type BlockKind = "verifica" | "interrogazione" | "compito" | "recupero";
+export type BlockKind = "verifica" | "interrogazione" | "compito" | "recupero" | "ripasso";
 
 export type StudyBlock = {
   date: string;
@@ -94,6 +97,11 @@ export type SubjectStatus = {
   target: number | null;
   gap: number;
   nextTest: AgendaItem | null;
+  lastGrade: number | null;
+  /** Mean of the last 2 grades minus mean of the earlier ones; positive = improving */
+  trend: number | null;
+  /** Lessons with a topic in the last 7 days, since the last test */
+  newTopics: number;
 };
 
 export type DayPlan = {

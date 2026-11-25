@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, normalizeSubject, planWeek, recentTopics, subjectStatuses, weightedAverage } from "./planner";
+import { adaptiveLoad, defaultSettings, normalizeSubject, planWeek, recentTopics, subjectStatuses, weightedAverage } from "./planner";
 import { sampleData } from "./sample-data";
 import { addDays, romeToIso, toMinutes } from "./dates";
 import type { StudentData } from "./types";
@@ -41,7 +41,7 @@ describe("planWeek with sample data", () => {
 
   it("prepares the maths test on days before it, spread out", () => {
     const maths = blocks.filter((b) => b.kind === "verifica" && b.subject === "Matematica");
-    expect(maths.length).toBe(4);
+    expect(maths.length).toBe(5); // 3h + 45 min because maths is below target
     expect(maths.every((b) => b.date < "2026-12-03")).toBe(true);
     const perDay = new Map<string, number>();
     for (const b of maths) perDay.set(b.date, (perDay.get(b.date) ?? 0) + 1);
@@ -113,7 +113,7 @@ describe("timetable", () => {
   it("starts studying after school, travel and lunch", () => {
     expect(defaultSettings.windows[1]).toEqual([{ start: "15:25", end: "19:30" }]); // Monday ends 13:55
     expect(defaultSettings.windows[2]).toEqual([{ start: "14:35", end: "19:30" }]); // Tuesday ends 13:05
-    expect(defaultSettings.windows[6]).toHaveLength(2); // Saturday morning and afternoon
+    expect(defaultSettings.windows[6]).toEqual([{ start: "10:00", end: "12:00" }]); // light Saturday
   });
 
   it("matches ClasseViva names to short timetable names", () => {
@@ -133,6 +133,31 @@ describe("timetable", () => {
     // Latin is on Tuesday and Thursday: study on Monday and Wednesday
     for (const b of latin) expect(["2026-11-30", "2026-12-02"]).toContain(b.date);
     expect(latin[0].reason).toContain("domani c'è lezione");
+  });
+});
+
+describe("adaptive load", () => {
+  const base = { subject: "Fisica", nextTest: null, newTopics: 0 };
+  it("adds recovery after a fail and when grades fall, removes it when they rise", () => {
+    const s = defaultSettings;
+    expect(adaptiveLoad({ ...base, average: 6.8, target: 7, gap: 0.2, lastGrade: 7, trend: 0 }, s).recovery).toBe(1);
+    expect(adaptiveLoad({ ...base, average: 7.2, target: 7, gap: 0, lastGrade: 5.5, trend: -1.5 }, s).recovery).toBe(2);
+    expect(adaptiveLoad({ ...base, average: 6.8, target: 7, gap: 0.2, lastGrade: 7.5, trend: 1 }, s).recovery).toBe(0);
+    expect(adaptiveLoad({ ...base, average: 8, target: 7, gap: 0, lastGrade: 8, trend: 0 }, s)).toMatchObject({
+      recovery: 0,
+      testMinutes: -45,
+    });
+  });
+
+  it("keeps Sunday for deadlines only and adds review blocks for new topics", () => {
+    const data = sampleData(MON);
+    data.agenda = [];
+    data.goals = [];
+    data.lessons = ["2026-11-30", "2026-12-01", "2026-12-02"].map((date, i) => ({ subject: "Fisica", date, topic: `Argomento ${i}` }));
+    const plan = planWeek(data, MON, "2026-12-03");
+    const blocks = plan.days.flatMap((d) => d.blocks);
+    expect(blocks.filter((b) => b.kind === "ripasso").map((b) => b.subject)).toEqual(["Fisica"]);
+    expect(plan.days[6].blocks).toHaveLength(0);
   });
 });
 

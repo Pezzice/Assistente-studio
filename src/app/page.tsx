@@ -12,6 +12,7 @@ const kindLabel: Record<BlockKind, string> = {
   interrogazione: "Interrogazione",
   compito: "Compiti",
   recupero: "Recupero",
+  ripasso: "Nuovi argomenti",
 };
 
 const fmtGrade = (n: number | null) => (n === null ? "–" : n.toFixed(2).replace(".", ","));

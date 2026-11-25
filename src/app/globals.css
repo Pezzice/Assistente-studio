@@ -69,6 +69,7 @@ a { color: var(--accent); }
 .k-interrogazione { --c: var(--oral); --b: var(--oral-bg); }
 .k-compito { --c: var(--hw); --b: var(--hw-bg); }
 .k-recupero { --c: var(--rec); --b: var(--rec-bg); }
+.k-ripasso { --c: var(--muted); --b: var(--busy-bg); }
 .block-head { display: flex; justify-content: space-between; align-items: center; }
 .tag { font-size: 0.72rem; font-weight: 600; color: var(--c); text-transform: uppercase; letter-spacing: 0.05em; }
 .subject { font-weight: 600; }

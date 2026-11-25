@@ -15,11 +15,11 @@ export const afterSchool = { travelMinutes: 45, lunchMinutes: 45 };
 /** Fine dello studio nei giorni di scuola (poi cena e tempo libero). */
 export const weekdayStudyEnd = "19:30";
 
-/** Giorni senza scuola: fasce di studio, il resto è tempo libero e famiglia. */
+/**
+ * Giorni senza scuola, weekend leggero: il sabato una mattina breve, la domenica un'ora e mezza
+ * nel pomeriggio usata solo se c'è una verifica o dei compiti a inizio settimana.
+ */
 export const freeDayWindows = {
-  saturday: [
-    { start: "09:30", end: "12:30" },
-    { start: "15:00", end: "18:00" },
-  ],
-  sunday: [{ start: "15:00", end: "18:00" }],
+  saturday: [{ start: "10:00", end: "12:00" }],
+  sunday: [{ start: "16:00", end: "17:45" }],
 };

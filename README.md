@@ -47,3 +47,10 @@ npm run dev     # http://localhost:3000
 
 Stack: Next.js 15, TypeScript, ical.js, Vitest. L'API di ClasseViva usata è quella non
 ufficiale dell'app mobile: può cambiare senza preavviso.
+
+## Verificare ClasseViva
+
+- In locale: metti le credenziali in `.env.local` e lancia `npm run verifica:classeviva`.
+  Stampa login, numero di voti, agenda e lezioni, le materie trovate e come sono state
+  classificate le voci dell'agenda. Non stampa mai le credenziali.
+- Online: la pagina `/diagnostica` (protetta dal PIN) mostra lo stesso riepilogo.

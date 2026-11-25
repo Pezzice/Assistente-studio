@@ -26,12 +26,21 @@ export class ClasseVivaError extends Error {
 }
 
 export async function login(user: string, pass: string, f: FetchLike = fetch): Promise<Session> {
-  const res = await f(`${BASE}/auth/login`, {
-    method: "POST",
-    headers: HEADERS,
-    body: JSON.stringify({ ident: null, pass, uid: user }),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await f(`${BASE}/auth/login`, {
+      method: "POST",
+      headers: HEADERS,
+      body: JSON.stringify({ ident: null, pass, uid: user }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const cause = (e as { cause?: { code?: string } }).cause?.code;
+    throw new ClasseVivaError(`ClasseViva non raggiungibile${cause ? ` (${cause})` : ""}`);
+  }
+  if (res.status === 422 || res.status === 401) {
+    throw new ClasseVivaError("Credenziali ClasseViva non accettate", res.status);
+  }
   if (!res.ok) throw new ClasseVivaError(`Login ClasseViva fallito (HTTP ${res.status})`, res.status);
   const body = (await res.json()) as { ident?: string; token?: string; expire?: string };
   if (!body.token || !body.ident) throw new ClasseVivaError("Risposta di login ClasseViva inattesa");
