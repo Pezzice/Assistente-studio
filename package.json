@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verifica:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/verifica-classeviva.mts",
-    "aggiorna:calendario": "tsx --tsconfig tsconfig.json scripts/aggiorna-calendario.mts"
+    "aggiorna:calendario": "tsx --tsconfig tsconfig.json scripts/aggiorna-calendario.mts",
+    "sincronizza:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/sincronizza-classeviva.mts"
   },
   "dependencies": {
     "ical.js": "^2.2.1",

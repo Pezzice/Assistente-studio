@@ -67,3 +67,16 @@ npm run aggiorna:calendario -- <da YYYY-MM-DD> <a YYYY-MM-DD> eventi.json
 ```
 
 Ogni aggiornamento è un commit su `main`, quindi Vercel ripubblica l'app da solo.
+
+## ClasseViva sincronizzato da casa
+
+ClasseViva blocca con un filtro anti-bot (HTTP 403) le richieste che arrivano dai server cloud,
+Vercel compreso. Per questo voti, agenda e lezioni si scaricano da un computer di casa:
+
+```bash
+npm run sincronizza:classeviva
+```
+
+Lo script usa le credenziali in `.env.local`, aggiorna `data/classeviva.json` e, se ci sono
+novità, fa commit e push su `main`; Vercel ripubblica l'app da solo. Va pianificato più volte
+al giorno sul computer di casa.
