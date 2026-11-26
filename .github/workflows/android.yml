@@ -1,0 +1,50 @@
+name: App Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - "src/lib/**"
+      - "src/config/**"
+      - "android/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm test
+      - run: npm run android:sync
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Publish to the "android" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk assistente-studio.apk
+          gh release view android >/dev/null 2>&1 || gh release create android --title "App Android" --notes "Ultima versione dell'app Android. Scarica assistente-studio.apk dal telefono e installalo." --prerelease
+          gh release upload android assistente-studio.apk --clobber
+          gh release edit android --notes "Ultima versione: build ${{ github.run_number }} del $(date -u +%Y-%m-%d). Scarica assistente-studio.apk dal telefono e installalo."

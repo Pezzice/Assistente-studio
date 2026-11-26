@@ -6,6 +6,8 @@ export async function middleware(req: NextRequest) {
   if (!pin) return NextResponse.next(); // PIN disattivato (sviluppo locale)
   const cookie = req.cookies.get(COOKIE)?.value;
   if (cookie && cookie === (await pinToken(pin))) return NextResponse.next();
+  // The Android app sends the PIN in a header
+  if (req.nextUrl.pathname.startsWith("/api/") && req.headers.get("x-family-pin") === pin) return NextResponse.next();
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "PIN richiesto" }, { status: 401 });
   }

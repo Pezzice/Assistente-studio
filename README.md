@@ -80,3 +80,18 @@ npm run sincronizza:classeviva
 Lo script usa le credenziali in `.env.local`, aggiorna `data/classeviva.json` e, se ci sono
 novità, fa commit e push su `main`; Vercel ripubblica l'app da solo. Va pianificato più volte
 al giorno sul computer di casa.
+
+## App Android
+
+ClasseViva blocca le richieste dai server, ma non quelle dal telefono di Gabriele. L'app Android
+(`mobile/`, impacchettata con Capacitor) legge ClasseViva direttamente dal telefono con le
+richieste HTTP native, tiene le credenziali solo nella memoria protetta del telefono e calcola il
+piano sul telefono. Gli impegni arrivano dall'app web (`/api/calendario`, con il PIN di famiglia).
+
+Ogni push su `main` che tocca l'app fa partire il workflow "App Android", che pubblica
+`assistente-studio.apk` nella release `android` del repository.
+
+```bash
+npm run mobile:build   # bundle web dell'app in mobile/dist
+npm run android:sync   # bundle + copia nel progetto android/
+```

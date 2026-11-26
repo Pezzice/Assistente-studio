@@ -10,9 +10,14 @@
     "typecheck": "tsc --noEmit",
     "verifica:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/verifica-classeviva.mts",
     "aggiorna:calendario": "tsx --tsconfig tsconfig.json scripts/aggiorna-calendario.mts",
-    "sincronizza:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/sincronizza-classeviva.mts"
+    "sincronizza:classeviva": "tsx --env-file-if-exists=.env.local --tsconfig tsconfig.json scripts/sincronizza-classeviva.mts",
+    "mobile:build": "vite build --config mobile/vite.config.ts",
+    "android:sync": "npm run mobile:build && cap sync android"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/android": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
     "ical.js": "^2.2.1",
     "next": "^15.5.29",
     "react": "^19.3.1",
@@ -20,11 +25,13 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.3",
     "@types/node": "^22.20.7",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
+    "vite": "^8.4.0",
     "vitest": "^3.2.7"
   }
 }
