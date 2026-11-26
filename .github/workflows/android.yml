@@ -48,3 +48,13 @@ jobs:
           gh release view android >/dev/null 2>&1 || gh release create android --title "App Android" --notes "Ultima versione dell'app Android. Scarica assistente-studio.apk dal telefono e installalo." --prerelease
           gh release upload android assistente-studio.apk --clobber
           gh release edit android --notes "Ultima versione: build ${{ github.run_number }} del $(date -u +%Y-%m-%d). Scarica assistente-studio.apk dal telefono e installalo."
+      - name: Publish the unlisted download on the web app
+        run: |
+          mkdir -p public/app-ZhwyxOn9cRbJDv4M
+          cp assistente-studio.apk public/app-ZhwyxOn9cRbJDv4M/assistente-studio.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app-ZhwyxOn9cRbJDv4M/assistente-studio.apk
+          git commit -m "App Android build ${{ github.run_number }}"
+          git pull --rebase
+          git push
