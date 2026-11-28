@@ -175,6 +175,7 @@ let refreshing = false;
 async function refresh(s: Settings) {
   if (refreshing) return;
   refreshing = true;
+  render();
   const today = todayInRome();
   const old = loadCache();
   const steps: Step[] = [
@@ -303,11 +304,16 @@ function homeView(cache: Cache) {
       <h1>${hello}, Gabriele</h1>
       <blockquote class="quote">${esc(phraseOfTheDay(today))}</blockquote>
     </section>
+    <div class="stats">
+      <div class="stat"><b>${blocks.length}</b><span>blocchi oggi</span></div>
+      <div class="stat"><b>${hours(blocks.reduce((t, b) => t + toMinutes(b.end) - toMinutes(b.start), 0))} h</b><span>di studio</span></div>
+      <div class="stat"><b>${tests.length}</b><span>prove in 7 giorni</span></div>
+    </div>
     <section>
       <h2>Oggi</h2>
       ${
         blocks.length
-          ? `<p class="sub">${blocks.length} blocchi, ${hours(blocks.reduce((t, b) => t + toMinutes(b.end) - toMinutes(b.start), 0))} ore</p>${blocks.map((b) => blockHtml(b, today, true)).join("")}`
+          ? `${blocks.map((b) => blockHtml(b, today, true)).join("")}`
           : `<p class="empty">Oggi niente studio in programma. Goditi la giornata.</p>`
       }
     </section>
@@ -426,6 +432,17 @@ function settingsView(current: Settings | null, message = "") {
     </form>`;
 }
 
+const svg = (d: string) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const icons = {
+  home: svg('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  week: svg('<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/>'),
+  next: svg('<path d="M9 11l3 3 8-8"/><path d="M20 12v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h9"/>'),
+  settings: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  refresh: svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>'),
+  book: svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/>'),
+};
+
 const tabs: [View, string][] = [
   ["home", "Oggi"],
   ["week", "Settimana"],
@@ -443,14 +460,14 @@ async function render(message = "") {
   else if (view === "next") body = nextWeekView(cache);
   else body = homeView(cache);
 
-  const status = cache ? `<p class="updated">ClasseViva: ${fmtTime(cache.updatedAt)}${cache.calendar?.updatedAt ? ` · Calendario: ${fmtTime(cache.calendar.updatedAt)}` : ""}</p>` : "";
+  const status = cache ? `<p class="updated">Aggiornato ${fmtTime(cache.updatedAt)}${cache.calendar?.updatedAt ? ` · Calendario ${fmtTime(cache.calendar.updatedAt)}` : ""}</p>` : `<p class="updated">Da configurare</p>`;
   app.innerHTML = `
     <div class="toolbar">
-      <button id="refresh" class="primary" ${settings ? "" : "disabled"}>⟳ Aggiorna</button>
-      ${status}
+      <div class="brand"><span class="logo">${icons.book}</span><div class="brand-text"><strong>Assistente studio</strong>${status}</div></div>
+      <button id="refresh" class="primary${refreshing ? " spinning" : ""}" ${settings && !refreshing ? "" : "disabled"}>${icons.refresh}Aggiorna</button>
     </div>
     ${body}
-    <nav class="tabbar">${tabs.map(([v, l]) => `<button data-view="${v}" class="${v === view ? "on" : ""}">${l}</button>`).join("")}</nav>`;
+    <nav class="tabbar">${tabs.map(([v, l]) => `<button data-view="${v}" class="${v === view ? "on" : ""}">${icons[v]}<span>${l}</span></button>`).join("")}</nav>`;
   bind(settings);
 }
 
