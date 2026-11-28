@@ -77,7 +77,13 @@ export type StudentData = {
   lessons: Lesson[];
   commitments: Commitment[];
   goals: Goal[];
+  /** Work left over from blocks marked "parziale" or "non fatto" */
+  carryOver?: CarryOver[];
 };
+
+export type CarryOver = { subject: string; minutes: number; reason: string };
+
+export type BlockStatus = "completo" | "parziale" | "non fatto";
 
 export type BlockKind = "verifica" | "interrogazione" | "compito" | "recupero" | "ripasso";
 

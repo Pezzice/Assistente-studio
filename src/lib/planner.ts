@@ -318,6 +318,20 @@ function buildDemands(data: StudentData, statuses: SubjectStatus[], from: string
   }
   demands.push(...ripasso.sort((a, b) => b.priority - a.priority).slice(0, s.maxReviewBlocksPerWeek));
 
+  // Catch up on blocks marked "parziale" or "non fatto"
+  for (const c of data.carryOver ?? []) {
+    if (c.minutes <= 0) continue;
+    demands.push({
+      subject: c.subject,
+      kind: "recupero",
+      minutes: c.minutes,
+      deadline: addDays(weekEnd, 1),
+      earliest: from,
+      reason: c.reason,
+      priority: 50,
+    });
+  }
+
   // Deadlines first (earliest deadline first), then recovery of subjects below target
   // Homework from ClasseViva always comes first, then tests, then recovery and review
   const rank = (d: Demand) => ({ compito: 0, verifica: 1, interrogazione: 1, recupero: 2, ripasso: 3 })[d.kind];

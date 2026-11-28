@@ -175,6 +175,17 @@ describe("homework", () => {
   });
 });
 
+describe("carry over", () => {
+  it("reschedules work left from blocks not done", () => {
+    const data = sampleData(MON);
+    data.agenda = [];
+    data.goals = [];
+    data.carryOver = [{ subject: "Storia e geografia", minutes: 45, reason: "Da recuperare: non fatto lunedì 30 nov" }];
+    const blocks = planWeek(data, MON, "2026-12-01").days.flatMap((d) => d.blocks);
+    expect(blocks.filter((b) => b.reason.startsWith("Da recuperare")).map((b) => b.subject)).toEqual(["Storia e geografia"]);
+  });
+});
+
 describe("recentTopics", () => {
   it("takes topics since the last test", () => {
     const d = sampleData(MON);
